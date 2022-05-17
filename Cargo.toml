@@ -1,0 +1,13 @@
+[package]
+name = "cvpn-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "3.1", features = ["derive"] }
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+anyhow = "1.0"
+async-trait = "0.1"
+chrono = "0.4"
+scraper = "0.13"
