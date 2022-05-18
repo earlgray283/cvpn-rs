@@ -49,8 +49,8 @@ impl Segment {
 }
 
 pub struct Size {
-    size: f64,
-    unit: Unit,
+    pub size: f64,
+    pub unit: Unit,
 }
 
 impl Size {
