@@ -1,7 +1,8 @@
+use crate::api::model::volume_id::VolumeID;
 use anyhow::Result;
-use api::{Client, VolumeID};
+use api::Client;
 use clap::{Parser, Subcommand};
-use std::{env, path::PathBuf};
+use std::{env, fmt::Write, path::PathBuf};
 
 mod api;
 mod appdata;
@@ -41,9 +42,11 @@ async fn main() -> Result<()> {
         Command::List { path, volume_name } => {
             let volume_id = VolumeID::from_str(&volume_name)?;
             let segments = client.list(path, &volume_id).await?;
+            let mut output = String::new();
             for segment in segments {
-                println!("{}", segment.name);
+                writeln!(output, "{}", segment)?;
             }
+            println!("{}", output);
         }
     }
 

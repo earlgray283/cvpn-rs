@@ -1,6 +1,6 @@
 use super::{
-    model::segment::{Segment, Size, Unit},
-    Client, VolumeID,
+    model::{segment::Segment, volume_id::VolumeID, size::{Size, Unit}},
+    Client,
 };
 use anyhow::{bail, Result};
 use chrono::NaiveDateTime;
@@ -9,6 +9,14 @@ use scraper::{Html, Selector};
 use std::{path::PathBuf, str::FromStr};
 
 const DATETIME_FORMAT: &str = "%a %b  %d %H:%M:%S %Y";
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("cannot fetch directory '{0}': Permission denied")]
+    PermissionDenied(String),
+    #[error("unknown error")]
+    Unknown,
+}
 
 impl Client {
     pub async fn list<P: Into<PathBuf>>(&self, p: P, volume_id: &VolumeID) -> Result<Vec<Segment>> {
@@ -24,15 +32,12 @@ impl Client {
             .append_pair("sb", "name")
             .append_pair("so", "asc")
             .append_pair("dir", path.to_str().unwrap());
-        dbg!(u.as_str());
         let resp = self.http.get(u).send().await?;
         if resp.status() != StatusCode::OK {
             if resp.status() == StatusCode::FOUND {
-                let html = resp.text().await?;
-                dbg!(html);
-                bail!("Permission denied");
+                bail!(Error::PermissionDenied(path.to_str().unwrap().to_string()))
             } else {
-                bail!("Undefined error");
+                bail!(Error::Unknown)
             }
         }
 
@@ -54,8 +59,6 @@ impl Client {
                 .split(',')
                 .map(|s| s.trim_matches('\"'))
                 .collect::<Vec<_>>();
-
-            dbg!(line, &tokens);
 
             if tokens.len() == 3 {
                 segments.push(Segment::from_dir(

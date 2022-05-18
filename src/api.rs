@@ -2,19 +2,25 @@ use crate::appdata::{load_cookies, save_cookies};
 use anyhow::{anyhow, bail, Result};
 use reqwest::{header::HeaderMap, redirect::Policy, ClientBuilder, StatusCode};
 use scraper::{Html, Selector};
-use std::fmt::{self, Display, Formatter};
+use thiserror::Error;
 
 pub mod list;
 pub mod model;
 
-pub struct Client {
-    http: reqwest::Client,
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("invalid username or password")]
+    InvalidUsernameOrPassword,
+    #[error("{0} was not found")]
+    AttrValueNotFound(String),
+    #[error("Response status was not {0}")]
+    InvalidResponseStatus(StatusCode),
+    #[error("unknown error")]
+    Unknown,
 }
 
-fn default_http_builder() -> ClientBuilder {
-    reqwest::ClientBuilder::new()
-        .redirect(Policy::none())
-        .cookie_store(true)
+pub struct Client {
+    http: reqwest::Client,
 }
 
 impl Client {
@@ -36,7 +42,6 @@ impl Client {
         let cookies = match load_cookies() {
             Ok(cookies) => cookies,
             Err(_) => {
-                dbg!("local cookies were not found");
                 return Self::with_login(username, password).await;
             }
         };
@@ -46,7 +51,6 @@ impl Client {
         let http = default_http_builder().default_headers(header).build()?;
         let client = Self { http };
         if let Err(_e) = client.check_cookies().await {
-            dbg!("cookies were invalid");
             Self::with_login(username, password).await
         } else {
             Ok(client)
@@ -62,10 +66,10 @@ impl Client {
         Html::parse_document(resp.text().await?.as_str())
             .select(&Selector::parse("#xsauth_395").unwrap())
             .next()
-            .ok_or_else(|| anyhow!("#xsauth_395 was not found"))?
+            .ok_or_else(|| Error::AttrValueNotFound("xsauth".to_string()))?
             .value()
             .attr("value")
-            .ok_or_else(|| anyhow!("xsauth not found"))?;
+            .ok_or_else(|| Error::AttrValueNotFound("xsauth".to_string()))?;
         Ok(())
     }
 
@@ -83,70 +87,65 @@ impl Client {
             .send()
             .await?;
         if resp.status() != StatusCode::FOUND {
-            bail!("login: Response status was not 302")
+            bail!(Error::InvalidResponseStatus(StatusCode::FOUND))
         }
 
-        let location = match resp.headers().get("location") {
-            Some(l) => l,
-            None => {
-                dbg!(resp.text().await?);
-                return Err(anyhow!("location was expected"));
+        match resp.headers().get("location").unwrap().to_str()? {
+            "/dana/home/index.cgi" => {
+                let cookies = resp
+                    .cookies()
+                    .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
+                    .collect::<Vec<_>>();
+                save_cookies(&cookies)?;
+                Ok(())
             }
-        };
-
-        match location.to_str()? {
-            "/dana/home/index.cgi" => Ok(()),
             "/dana-na/auth/url_3/welcome.cgi?p=failed" => {
-                Err(anyhow!("Invalid username or password"))
+                Err(anyhow!(Error::InvalidUsernameOrPassword))
             }
-            // TODO: セッションを選択させる
-            _ => Err(anyhow!("Session Error")),
-        }?;
-
-        let cookies = resp
-            .cookies()
-            .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
-            .collect::<Vec<_>>();
-
-        dbg!(&cookies);
-        save_cookies(&cookies)?;
-
-        dbg!(resp.text().await?);
-
-        Ok(())
+            _ => {
+                let html = Html::parse_document(resp.text().await?.as_str());
+                let form_data_str = html
+                    .select(&Selector::parse("#DSIDFormDataStr").unwrap())
+                    .next()
+                    .ok_or_else(|| Error::AttrValueNotFound("DSIDFormDataStr".to_string()))?
+                    .value()
+                    .attr("value")
+                    .ok_or_else(|| Error::AttrValueNotFound("DSIDFormDataStr".to_string()))?;
+                self.continue_current_session(form_data_str).await
+            }
+        }
     }
-}
 
-pub enum VolumeID {
-    FSShare,
-    FS(String),
-}
+    pub async fn continue_current_session(&self, form_data_str: &str) -> Result<()> {
+        let resp = self
+            .http
+            .post("https://vpn.inf.shizuoka.ac.jp/dana-na/auth/url_3/login.cgi")
+            .form(&[
+                ("btnContinue", "セッションを続行します"),
+                ("FormDataStr", form_data_str),
+            ])
+            .send()
+            .await?;
+        if resp.status() != StatusCode::FOUND {
+            bail!(Error::InvalidResponseStatus(StatusCode::FOUND))
+        }
 
-impl VolumeID {
-    pub fn from_str(name: &str) -> Result<Self> {
-        if name == "fsshare" {
-            Ok(Self::FSShare)
-        } else if name.starts_with("fs") {
-            let tokens = name.split('/').collect::<Vec<_>>();
-            let fs_prefix = tokens
-                .get(2)
-                .ok_or_else(|| anyhow!("invalid fs volume format. example: -v fs/2020"))?;
-            Ok(Self::FS("fs/".to_owned() + *fs_prefix))
-        } else {
-            bail!("No such volume {}", name);
+        match resp.headers().get("location").unwrap().to_str()? {
+            "/dana/home/index.cgi" => {
+                let cookies = resp
+                    .cookies()
+                    .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
+                    .collect::<Vec<_>>();
+                save_cookies(&cookies)?;
+                Ok(())
+            }
+            _ => Err(anyhow!(Error::Unknown)),
         }
     }
 }
 
-impl Display for VolumeID {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                VolumeID::FSShare => "resource_1423533946.487706.3",
-                VolumeID::FS(s) => s,
-            }
-        )
-    }
+fn default_http_builder() -> ClientBuilder {
+    reqwest::ClientBuilder::new()
+        .redirect(Policy::none())
+        .cookie_store(true)
 }

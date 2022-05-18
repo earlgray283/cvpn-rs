@@ -1,3 +1,4 @@
+use super::size::Size;
 use chrono::NaiveDateTime;
 use std::path::PathBuf;
 
@@ -48,34 +49,29 @@ impl Segment {
     }
 }
 
-pub struct Size {
-    pub size: f64,
-    pub unit: Unit,
-}
+const DATETIME_FORMAT: &str = "%a %b %d %T";
+const SHOW_ICON: bool = true;
 
-impl Size {
-    pub fn new(size: f64, unit: Unit) -> Self {
-        Self { size, unit }
-    }
-}
-
-pub enum Unit {
-    B,
-    KB,
-    MB,
-    GB,
-    TB,
-}
-
-impl Unit {
-    pub fn from_str(s: &str) -> Self {
-        match &*s {
-            "B" => Unit::B,
-            "KB" => Unit::KB,
-            "MB" => Unit::MB,
-            "GB" => Unit::GB,
-            "TB" => Unit::TB,
-            _ => Unit::B,
+impl std::fmt::Display for Segment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_file {
+            write!(
+                f,
+                "{}  {}  {} {}",
+                self.size.as_ref().unwrap(),
+                self.uploaded_at.format(DATETIME_FORMAT),
+                if SHOW_ICON { "" } else { "" },
+                self.name,
+            )
+        } else {
+            write!(
+                f,
+                "{:>10}  {}  {} {}",
+                "-",
+                self.uploaded_at.format(DATETIME_FORMAT),
+                if SHOW_ICON { "" } else { "" },
+                self.name,
+            )
         }
     }
 }
