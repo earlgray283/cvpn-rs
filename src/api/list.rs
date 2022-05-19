@@ -1,14 +1,24 @@
 use super::{
-    model::{segment::Segment, volume_id::VolumeID, size::{Size, Unit}},
+    model::{
+        segment::Segment,
+        size::{Size, Unit},
+        volume_id::VolumeID,
+    },
     Client,
 };
 use anyhow::{bail, Result};
 use chrono::NaiveDateTime;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use reqwest::{StatusCode, Url};
 use scraper::{Html, Selector};
 use std::{path::PathBuf, str::FromStr};
 
+const SEGMENTS_CAPASITY: usize = 256;
 const DATETIME_FORMAT: &str = "%a %b  %d %H:%M:%S %Y";
+static DIR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"d\("(.+)","(.+)","(.+)"\);"#).unwrap());
+static FILE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"f\("(.+)","(.+)","(.+)","(.+)"\);"#).unwrap());
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -48,36 +58,30 @@ impl Client {
             .unwrap()
             .text()
             .collect::<String>();
-        let lines = elem.split(";\n").collect::<Vec<_>>();
+        let lines = elem.split('\n').collect::<Vec<_>>();
 
-        let mut segments = Vec::new();
+        let mut segments = Vec::with_capacity(SEGMENTS_CAPASITY);
         for &line in &lines {
             if line.is_empty() {
-                break;
+                continue;
             }
-            let tokens = line.trim()[2..=line.len() - 3]
-                .split(',')
-                .map(|s| s.trim_matches('\"'))
-                .collect::<Vec<_>>();
 
-            if tokens.len() == 3 {
+            if let Some(tokens) = DIR_REGEX.captures_iter(line).next() {
                 segments.push(Segment::from_dir(
-                    tokens[0].to_string(),
-                    path.join(tokens[0]),
-                    tokens[2].to_string(),
-                    NaiveDateTime::parse_from_str(tokens[2], DATETIME_FORMAT)?,
+                    tokens[1].to_string(),
+                    path.join(&tokens[1]),
+                    volume_id.to_string(),
+                    NaiveDateTime::parse_from_str(&tokens[3], DATETIME_FORMAT)?,
                 ))
-            } else {
-                let size_tokens = tokens[2].split("&nbsp;").collect::<Vec<_>>();
-                if size_tokens.len() != 2 {
-                    bail!("The size of size_tokens must be 2");
-                }
+            }
+            if let Some(tokens) = FILE_REGEX.captures_iter(line).next() {
+                let size_tokens = tokens[3].split("&nbsp;").collect::<Vec<_>>();
                 segments.push(Segment::from_file(
-                    tokens[0].to_string(),
-                    path.join(tokens[0]),
+                    tokens[1].to_string(),
+                    path.join(&tokens[1]),
                     Size::new(size_tokens[0].parse()?, Unit::from_str(size_tokens[1])),
-                    tokens[2].to_string(),
-                    NaiveDateTime::parse_from_str(tokens[3], DATETIME_FORMAT)?,
+                    volume_id.to_string(),
+                    NaiveDateTime::parse_from_str(&tokens[4], DATETIME_FORMAT)?,
                 ))
             }
         }
