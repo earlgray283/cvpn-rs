@@ -27,8 +27,6 @@ pub async fn setup() -> Result<(String, String)> {
             }
         };
 
-        dbg!(&username, &password);
-
         let mut sp = Spinner::new(Spinners::Dots9, "Waiting for login...".to_string());
         match Client::with_login(&username, &password).await {
             Ok(_) => {

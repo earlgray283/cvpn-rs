@@ -1,11 +1,13 @@
-use crate::api::model::volume_id::VolumeID;
 use anyhow::Result;
 use api::Client;
+use appdata::{load_account_info, setup};
 use clap::{Parser, Subcommand};
-use std::{env, fmt::Write, path::PathBuf};
+use std::path::PathBuf;
+use subcmd::list::{list, Sort};
 
 mod api;
 mod appdata;
+mod subcmd;
 
 #[derive(Parser, Debug)]
 #[clap(name = "cvpn")]
@@ -18,36 +20,37 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     #[clap(arg_required_else_help = true)]
-    #[clap(alias = "ls")]
-    #[clap(alias = "l")]
+    #[clap(alias = "ls", alias = "l")]
     List {
         path: PathBuf,
-        #[clap(short, default_value = "fsshare")]
+        #[clap(short, long, default_value = "fsshare")]
         volume_name: String,
+        #[clap(long, default_value = "none", name = "sort_field")]
+        sort: Sort,
     },
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenv::from_path(".env")?;
-    let args = Cli::parse();
-
-    let client = Client::with_token_or_login(
-        env::var("CVPN_USERNAME")?.as_str(),
-        env::var("CVPN_PASSWORD")?.as_str(),
-    )
-    .await?;
-
-    match args.command {
-        Command::List { path, volume_name } => {
-            let volume_id = VolumeID::from_str(&volume_name)?;
-            let segments = client.list(path, &volume_id).await?;
-            let mut output = String::new();
-            for segment in segments {
-                writeln!(output, "{}", segment)?;
-            }
-            println!("{}", output);
+    let (username, password);
+    let args = match Cli::try_parse() {
+        Ok(args) => {
+            (username, password) = match load_account_info() {
+                Ok(info) => info,
+                Err(_) => setup().await?,
+            };
+            args
         }
+        Err(e) => e.exit(),
+    };
+
+    let client = Client::with_token_or_login(&username, &password).await?;
+    match args.command {
+        Command::List {
+            path,
+            volume_name,
+            sort,
+        } => list(client, path, &volume_name, sort).await?,
     }
 
     Ok(())

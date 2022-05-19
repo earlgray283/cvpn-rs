@@ -49,7 +49,7 @@ impl Segment {
     }
 }
 
-const DATETIME_FORMAT: &str = "%a %b %d %T";
+const DATETIME_FORMAT: &str = "%c";
 const SHOW_ICON: bool = true;
 
 impl std::fmt::Display for Segment {

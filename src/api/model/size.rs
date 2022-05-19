@@ -1,3 +1,4 @@
+#[derive(PartialEq, PartialOrd)]
 pub struct Size {
     pub size: f64,
     pub unit: Unit,
@@ -7,6 +8,10 @@ impl Size {
     pub fn new(size: f64, unit: Unit) -> Self {
         Self { size, unit }
     }
+
+    pub fn zero() -> Self {
+        Self::new(0.0, Unit::B)
+    }
 }
 
 impl std::fmt::Display for Size {
@@ -15,6 +20,7 @@ impl std::fmt::Display for Size {
     }
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub enum Unit {
     B,
     KB,
