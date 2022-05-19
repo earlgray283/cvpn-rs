@@ -3,7 +3,10 @@ use api::Client;
 use appdata::{load_account_info, setup};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use subcmd::list::{list, Sort};
+use subcmd::{
+    download::download,
+    list::{list, Sort},
+};
 
 mod api;
 mod appdata;
@@ -28,6 +31,15 @@ enum Command {
         #[clap(long, default_value = "none", name = "sort_field")]
         sort: Sort,
     },
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "dl", alias = "d")]
+    Download {
+        path: PathBuf,
+        #[clap(short, long, default_value = "fsshare")]
+        volume_name: String,
+        #[clap(short, long, default_value = ".")]
+        output: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -51,6 +63,11 @@ async fn main() -> Result<()> {
             volume_name,
             sort,
         } => list(client, path, &volume_name, sort).await?,
+        Command::Download {
+            path,
+            volume_name,
+            output,
+        } => download(client, path, &volume_name, output).await?,
     }
 
     Ok(())

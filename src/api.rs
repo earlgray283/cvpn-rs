@@ -4,6 +4,7 @@ use reqwest::{header::HeaderMap, redirect::Policy, ClientBuilder, StatusCode};
 use scraper::{Html, Selector};
 use thiserror::Error;
 
+pub mod download;
 pub mod list;
 pub mod model;
 

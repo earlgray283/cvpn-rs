@@ -225,6 +225,7 @@ dependencies = [
  "clap",
  "dotenv",
  "once_cell",
+ "percent-encoding",
  "regex",
  "reqwest",
  "rpassword",
