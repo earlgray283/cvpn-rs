@@ -30,7 +30,13 @@ impl FromStr for Sort {
     }
 }
 
-pub async fn list(client: Client, path: PathBuf, volume_name: &str, sort_by: Sort) -> Result<()> {
+pub async fn list(
+    client: Client,
+    path: PathBuf,
+    volume_name: &str,
+    sort_by: Sort,
+    name_only: bool,
+) -> Result<()> {
     let volume_id = VolumeID::from_str(volume_name)?;
     let mut segments = client.list(path, &volume_id).await?;
 
@@ -49,7 +55,11 @@ pub async fn list(client: Client, path: PathBuf, volume_name: &str, sort_by: Sor
 
     let mut output = String::new();
     for segment in segments {
-        output.push_str(&(segment.to_string() + "\n"));
+        if name_only {
+            output.push_str(&(segment.path.to_str().unwrap().to_string() + "\n"))
+        } else {
+            output.push_str(&(segment.to_string() + "\n"));
+        }
     }
     print!("{}", output);
     stdout().flush()?;

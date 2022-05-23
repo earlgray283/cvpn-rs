@@ -28,8 +28,10 @@ enum Command {
         path: PathBuf,
         #[clap(short, long, default_value = "fsshare")]
         volume_name: String,
-        #[clap(long, default_value = "none", name = "sort_field")]
+        #[clap(long, default_value = "none", name = "sort-field")]
         sort: Sort,
+        #[clap(long, name = "name-only")]
+        name_only: bool,
     },
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "dl", alias = "d")]
@@ -62,7 +64,8 @@ async fn main() -> Result<()> {
             path,
             volume_name,
             sort,
-        } => list(client, path, &volume_name, sort).await?,
+            name_only,
+        } => list(client, path, &volume_name, sort, name_only).await?,
         Command::Download {
             path,
             volume_name,
