@@ -31,9 +31,6 @@ impl Client {
             )
         )?;
 
-        // show url
-        // println!("{}", &url.to_string());
-
         let resp = self.http.get(url).send().await?;
         if resp.status() != StatusCode::OK {
             bail!(Error::InvalidResponseStatus(StatusCode::OK))
