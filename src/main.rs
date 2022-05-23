@@ -36,7 +36,7 @@ enum Command {
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "dl", alias = "d")]
     Download {
-        path: PathBuf,
+        pathes: Vec<PathBuf>,
         #[clap(short, long, default_value = "fsshare")]
         volume_name: String,
         #[clap(short, long, default_value = ".")]
@@ -67,10 +67,10 @@ async fn main() -> Result<()> {
             name_only,
         } => list(client, path, &volume_name, sort, name_only).await?,
         Command::Download {
-            path,
+            pathes,
             volume_name,
             output,
-        } => download(client, path, &volume_name, output).await?,
+        } => download(client, pathes, &volume_name, output).await?,
     }
 
     Ok(())

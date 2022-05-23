@@ -6,7 +6,7 @@ use super::{
     },
     Client,
 };
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use chrono::NaiveDateTime;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -55,7 +55,7 @@ impl Client {
         let elem = doc
             .select(&Selector::parse("table#table_wfb_5 > tbody > script").unwrap())
             .next()
-            .unwrap()
+            .ok_or_else(|| anyhow!("No such directory"))?
             .text()
             .collect::<String>();
         let lines = elem.split('\n').collect::<Vec<_>>();
