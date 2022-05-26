@@ -8,7 +8,7 @@ TODO
 
 ## Features
 
-1. list
+### 1. list
 
 Displays a list of files or directories in the specified path.
 
@@ -26,7 +26,7 @@ $ cvpn l /path/to/dir --name-only
 /path/to/dir/poker
 ```
 
-2. download
+### 2. download
 
 Download files from specified file paths.
 Files are downloaded in parallel.
