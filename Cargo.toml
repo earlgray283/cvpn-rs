@@ -2,6 +2,10 @@
 name = "cvpn"
 version = "0.1.0"
 edition = "2021"
+description = "a CLI application of VPN service at Faculty of Informatics, Shizuoka University"
+repository = "https://github.com/earlgray283/cvpn-rs"
+license = "MIT"
+readme = "README.md"
 
 [dependencies]
 clap = { version = "3.1", features = ["derive"] }
