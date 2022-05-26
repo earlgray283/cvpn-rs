@@ -37,7 +37,14 @@ pub async fn download(
         handles.push(handle);
     }
 
-    join_all(handles).await;
+    let results = join_all(handles).await;
+    for join_res in &results {
+        if let Err(e) = join_res {
+            eprintln!("failed to join an async handle{}", e);
+        } else if let Ok(Err(e)) = join_res {
+            eprintln!("{}", e);
+        }
+    }
 
     Ok(())
 }
