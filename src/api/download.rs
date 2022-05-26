@@ -1,6 +1,6 @@
 use super::{model::volume_id::VolumeID, Client};
 use anyhow::{bail, Result};
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS, NON_ALPHANUMERIC};
 use reqwest::{StatusCode, Url};
 use std::{path::PathBuf, str::FromStr};
 
@@ -14,6 +14,8 @@ pub enum Error {
     NotFound,
 }
 
+const FILENAME_ASCIISET: &AsciiSet = &CONTROLS.add(b'+');
+
 impl Client {
     pub async fn download<P: Into<PathBuf>>(
         &self,
@@ -22,13 +24,14 @@ impl Client {
         volume_id: &VolumeID,
     ) -> Result<Vec<u8>> {
         let dir: PathBuf = dirp.into();
+        let filename = utf8_percent_encode(filename, FILENAME_ASCIISET);
         let url = Url::from_str(
             &format!("https://vpn.inf.shizuoka.ac.jp/dana/download/{}?url=/dana-cached/fb/smb/wfv.cgi?t=p&v={}&si=&ri=&pi=&ignoreDfs=1&dir={}&file={}",
                 filename,
                 volume_id.to_string().as_str(),
                 utf8_percent_encode(dir.to_str().unwrap().trim_matches('/').replace('/', "\\").as_str(), NON_ALPHANUMERIC),
                 filename,
-            )
+            ),
         )?;
 
         let resp = self.http.get(url).send().await?;
