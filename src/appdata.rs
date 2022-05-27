@@ -90,11 +90,32 @@ pub fn load_cookies() -> Result<Vec<String>> {
     Ok(cookies)
 }
 
-#[cfg(target_os = "windows")]
-pub fn user_config_dir() -> Option<PathBuf> {}
+#[cfg(target_os = "linux")]
+pub fn cache_dir() -> Option<PathBuf> {
+    use std::fs::create_dir_all;
+    let home = match env::var_os("HOME") {
+        Some(home) => home,
+        None => return None,
+    };
+    let mut p = PathBuf::from_str(home.to_str().unwrap()).unwrap();
+    p.push(".cache/cvpn-rs");
+    create_dir_all(&p).unwrap();
+    Some(p)
+}
 
 #[cfg(target_os = "linux")]
-pub fn user_config_dir() -> Option<PathBuf> {}
+pub fn config_dir() -> Option<PathBuf> {
+    use std::fs::create_dir_all;
+    let home = match env::var_os("HOME") {
+        Some(home) => home,
+        None => return None,
+    };
+    let mut p = PathBuf::from_str(home.to_str().unwrap()).unwrap();
+    p.push(".config/cvpn-rs");
+    create_dir_all(&p).unwrap();
+    Some(p)
+}
+
 
 #[cfg(target_os = "macos")]
 pub fn cache_dir() -> Option<PathBuf> {
