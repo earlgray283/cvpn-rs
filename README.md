@@ -4,7 +4,11 @@ a CLI application of VPN service at Faculty of Informatics, Shizuoka University 
 
 ## Install
 
-TODO
+### 1. use cargo
+
+```shell
+$ cargo install cvpn
+```
 
 ## Features
 
